@@ -1,0 +1,180 @@
+/* ===== ANIMATIONS & TRANSITIONS ===== */
+
+/* Page view fade-in */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+  50%       { box-shadow: 0 0 32px rgba(59, 130, 246, 0.6); }
+}
+@keyframes bounce-in {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes card-drop {
+  0%   { transform: translateY(-8px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes timer-pulse {
+  0%, 100% { box-shadow: 0 0 24px var(--brand-glow); }
+  50%       { box-shadow: 0 0 48px rgba(124,58,237,0.7); }
+}
+@keyframes health-fill {
+  from { stroke-dashoffset: 283; }
+}
+@keyframes workload-grow {
+  from { width: 0; }
+}
+
+/* View entrance */
+.view.active {
+  animation: fadeInUp 0.35s ease both;
+}
+
+/* Modal entrance */
+.modal-box {
+  animation: scaleIn 0.25s ease both;
+}
+.command-palette {
+  animation: slideInRight 0.2s ease both;
+}
+.mood-modal-box {
+  animation: bounce-in 0.4s ease both;
+}
+
+/* Card hover glow */
+.project-card:hover {
+  box-shadow: var(--shadow-glow), var(--shadow-lg);
+}
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Kanban card entrance */
+.kanban-card {
+  animation: card-drop 0.2s ease both;
+}
+
+/* Pomodoro glow */
+.pomodoro-timer.running {
+  animation: timer-pulse 2s ease-in-out infinite;
+}
+
+/* Health ring animation */
+.health-ring .progress {
+  animation: health-fill 1s ease both;
+}
+
+/* Workload bars */
+.workload-bar-fill {
+  animation: workload-grow 0.6s ease both;
+}
+
+/* Logo glow */
+.logo-icon {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 0%,
+    var(--bg-overlay) 50%,
+    var(--bg-elevated) 100%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Nav item active indicator */
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: linear-gradient(180deg, var(--brand-primary), var(--brand-teal));
+  border-radius: 0 var(--radius-full) var(--radius-full) 0;
+}
+
+/* Notification dot pulse */
+.notif-dot {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Focus task check bounce */
+.focus-task-check.done {
+  animation: bounce-in 0.3s ease;
+}
+
+/* Mood button hover */
+.mood-btn:hover {
+  animation: bounce-in 0.3s ease;
+}
+
+/* Team card hover */
+.team-card:hover {
+  animation: none;
+}
+
+/* Staggered list animation helper */
+.stagger > * {
+  animation: fadeInUp 0.3s ease both;
+}
+.stagger > *:nth-child(1)  { animation-delay: 0.05s; }
+.stagger > *:nth-child(2)  { animation-delay: 0.10s; }
+.stagger > *:nth-child(3)  { animation-delay: 0.15s; }
+.stagger > *:nth-child(4)  { animation-delay: 0.20s; }
+.stagger > *:nth-child(5)  { animation-delay: 0.25s; }
+.stagger > *:nth-child(6)  { animation-delay: 0.30s; }
+.stagger > *:nth-child(7)  { animation-delay: 0.35s; }
+.stagger > *:nth-child(8)  { animation-delay: 0.40s; }
+
+/* Topbar button hover */
+.btn-primary:active { transform: scale(0.97); }
+.btn-ghost:active   { transform: scale(0.97); }
+
+/* Theme transition */
+body, .sidebar, .topbar, .card, .modal-box, .kanban-card {
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smooth sidebar collapse */
+.sidebar {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

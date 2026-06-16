@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Core — Smart Project Management</title>
+  <meta name="description" content="Core — A premium, distraction-free project management app with Kanban, Gantt timelines, team workload tracking, AI health scores, Focus Mode, and team mood check-ins." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <link rel="apple-touch-icon" href="./assets/icons/icon-192.png">
+
+</head>
+
+<body>
+
+
+  <!-- Command Palette Overlay -->
+  <div id="command-overlay" class="command-overlay hidden" aria-modal="true" role="dialog">
+    <div class="command-palette">
+      <div class="command-search">
+        <i data-lucide="search" class="command-search-icon"></i>
+        <input id="command-input" type="text" placeholder="Type a command or search…" autocomplete="off" />
+        <kbd class="command-esc">Esc</kbd>
+      </div>
+      <div id="command-results" class="command-results"></div>
+      <div class="command-footer">
+        <span><kbd>↑↓</kbd> Navigate</span>
+        <span><kbd>Enter</kbd> Select</span>
+        <span><kbd>Esc</kbd> Close</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Modal -->
+  <div id="task-modal" class="modal-overlay hidden">
+    <div class="modal-box" role="dialog" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 id="modal-title">Task Details</h2>
+        <button id="modal-close" class="icon-btn" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Create Task Modal -->
+  <div id="create-task-modal" class="modal-overlay hidden">
+    <div class="modal-box" role="dialog" aria-labelledby="create-modal-title">
+      <div class="modal-header">
+        <h2 id="create-modal-title">Create New Task</h2>
+        <button id="create-modal-close" class="icon-btn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="create-task-form" class="task-form">
+          <div class="form-group">
+            <label for="task-title-input">Task Title *</label>
+            <input id="task-title-input" type="text" placeholder="Enter task title…" required />
+          </div>
+          <div class="form-group">
+            <label for="task-desc-input">Description</label>
+            <textarea id="task-desc-input" rows="3" placeholder="What needs to be done?"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="task-project-select">Project *</label>
+              <select id="task-project-select" required></select>
+            </div>
+            <div class="form-group">
+              <label for="task-status-select">Status</label>
+              <select id="task-status-select">
+                <option value="todo">To Do</option>
+                <option value="inprogress">In Progress</option>
+                <option value="review">Review</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="task-priority-select">Priority</label>
+              <select id="task-priority-select">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="task-assignee-select">Assignee</label>
+              <select id="task-assignee-select"></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="task-due-input">Due Date</label>
+            <input id="task-due-input" type="date" />
+          </div>
+          <div class="form-group">
+            <label for="task-tags-input">Tags (comma separated)</label>
+            <input id="task-tags-input" type="text" placeholder="design, frontend, bug…" />
+          </div>
+          <div class="form-actions">
+            <button type="button" id="cancel-create-task" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Project Modal -->
+  <div id="create-project-modal" class="modal-overlay hidden">
+    <div class="modal-box" role="dialog" aria-labelledby="create-project-title">
+      <div class="modal-header">
+        <h2 id="create-project-title">Create New Project</h2>
+        <button id="create-project-close" class="icon-btn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="create-project-form" class="task-form">
+          <div class="form-group">
+            <label for="proj-name-input">Project Name *</label>
+            <input id="proj-name-input" type="text" placeholder="e.g. Q3 Marketing Campaign" required />
+          </div>
+          <div class="form-group">
+            <label for="proj-desc-input">Description</label>
+            <textarea id="proj-desc-input" rows="2" placeholder="What is the goal?"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="proj-emoji-input">Emoji Icon</label>
+              <input id="proj-emoji-input" type="text" value="🚀" style="text-align:center" />
+            </div>
+            <div class="form-group">
+              <label for="proj-color-input">Theme Color</label>
+              <input id="proj-color-input" type="color" value="#7c3aed" style="width:100%;height:38px;padding:0;border:none;border-radius:4px;cursor:pointer" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="proj-start-input">Start Date</label>
+              <input id="proj-start-input" type="date" />
+            </div>
+            <div class="form-group">
+              <label for="proj-end-input">End Date</label>
+              <input id="proj-end-input" type="date" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Team Members</label>
+            <div id="proj-members-container" style="display:flex;flex-wrap:wrap;gap:8px;background:var(--bg-elevated);padding:12px;border-radius:var(--radius-md);border:1px solid var(--border);max-height:150px;overflow-y:auto">
+              <!-- Checkboxes injected by app.js -->
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="cancel-create-project" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Project</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mood Check-in Modal -->
+  <div id="mood-modal" class="modal-overlay hidden">
+    <div class="modal-box mood-modal-box" role="dialog">
+      <div class="mood-modal-inner">
+        <div class="mood-emoji-big">🌟</div>
+        <h2>Good morning! How are you feeling today?</h2>
+        <p class="mood-subtitle">Your check-in helps your team understand workload and energy levels.</p>
+        <div class="mood-options" id="mood-options">
+          <button class="mood-btn" data-mood="1" title="Burned out">😩</button>
+          <button class="mood-btn" data-mood="2" title="Tired">😔</button>
+          <button class="mood-btn" data-mood="3" title="Okay">😐</button>
+          <button class="mood-btn" data-mood="4" title="Good">😊</button>
+          <button class="mood-btn" data-mood="5" title="Energized">🤩</button>
+        </div>
+        <div class="mood-labels">
+          <span>Burned out</span>
+          <span>Energized</span>
+        </div>
+        <button id="skip-mood" class="btn btn-ghost mood-skip">Skip for today</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Appointment Modal -->
+  <div id="create-appointment-modal" class="modal-overlay hidden">
+    <div class="modal-box" role="dialog" aria-labelledby="create-appointment-title">
+      <div class="modal-header">
+        <h2 id="create-appointment-title">Schedule Meeting</h2>
+        <button id="create-appointment-close" class="icon-btn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="create-appointment-form" class="task-form">
+          <div class="form-group">
+            <label for="appt-title-input">Meeting Title *</label>
+            <input id="appt-title-input" type="text" placeholder="e.g. Weekly Sync" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appt-date-input">Date *</label>
+              <input id="appt-date-input" type="date" required />
+            </div>
+            <div class="form-group">
+              <label for="appt-start-input">Start Time *</label>
+              <input id="appt-start-input" type="time" required />
+            </div>
+            <div class="form-group">
+              <label for="appt-end-input">End Time *</label>
+              <input id="appt-end-input" type="time" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Participants</label>
+            <div id="appt-members-container" style="display:flex;flex-wrap:wrap;gap:8px;background:var(--bg-elevated);padding:12px;border-radius:var(--radius-md);border:1px solid var(--border);max-height:200px;overflow-y:auto">
+              <!-- Checkboxes injected by appointments.js -->
+            </div>
+            <div id="appt-availability-status" style="margin-top:8px;font-size:0.85rem;"></div>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="cancel-create-appointment" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-create-appt">Schedule Meeting</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+  <!-- App Layout -->
+  <div class="app-layout" id="app-container">
+    <!-- Mobile Sidebar Overlay -->
+    <div class="mobile-sidebar-overlay hidden" id="mobile-overlay"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">
+          <i data-lucide="hexagon"></i>
+        </div>
+        <span class="logo-text">Core</span>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        <a href="#" class="nav-item active" data-view="dashboard" id="nav-dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-view="kanban" id="nav-kanban">
+          <i data-lucide="columns"></i>
+          <span>Kanban</span>
+        </a>
+        <a href="#" class="nav-item" data-view="timeline" id="nav-timeline">
+          <i data-lucide="gantt-chart"></i>
+          <span>Timeline</span>
+        </a>
+        <a href="#" class="nav-item" data-view="workload" id="nav-workload">
+          <i data-lucide="activity"></i>
+          <span>Workload</span>
+        </a>
+        <a href="#" class="nav-item" data-view="focus" id="nav-focus">
+          <i data-lucide="target"></i>
+          <span>Focus Mode</span>
+        </a>
+        <a href="#" class="nav-item" data-view="team" id="nav-team">
+          <i data-lucide="users"></i>
+          <span>Team</span>
+        </a>
+        <a href="#" class="nav-item" data-view="appointments" id="nav-appointments">
+          <i data-lucide="calendar"></i>
+          <span>Appointments</span>
+        </a>
+        <a href="#" class="nav-item" data-view="logs" id="nav-logs">
+          <i data-lucide="activity-square"></i>
+          <span>Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-section-label" id="sidebar-projects-header" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Projects</span>
+        <button id="add-project-btn" class="icon-btn hidden" aria-label="Add Project" style="width:20px;height:20px"><i data-lucide="plus" style="width:14px;height:14px"></i></button>
+      </div>
+      <div class="sidebar-projects" id="sidebar-projects"></div>
+
+      <div class="sidebar-bottom">
+        <a href="#" class="nav-item" data-view="settings" id="nav-settings">
+          <i data-lucide="settings"></i>
+          <span>Settings</span>
+        </a>
+        <div class="sidebar-user" id="sidebar-user" style="padding:var(--space-3)">
+          <div class="current-user-info" style="display:flex;align-items:center;gap:12px">
+            <div id="current-user-avatar" class="avatar-sm"></div>
+            <div style="flex:1;overflow:hidden">
+              <div id="current-user-name" style="font-weight:700;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+              <div id="current-user-role" style="font-size:.7rem;color:var(--text-muted)"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Main content area -->
+    <div class="main-wrapper">
+      <!-- Top bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="breadcrumb" id="breadcrumb">
+            <span>Dashboard</span>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button class="topbar-search" id="open-command" aria-label="Open command palette">
+            <i data-lucide="search"></i>
+            <span>Search or command…</span>
+            <kbd>Ctrl+K</kbd>
+          </button>
+          <button class="btn btn-primary btn-sm" id="topbar-create-task">
+            <i data-lucide="plus"></i>
+            New Task
+          </button>
+          <button class="icon-btn theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+            <i data-lucide="moon"></i>
+          </button>
+          <div class="notification-bell" id="notif-bell" style="position:relative">
+            <button class="icon-btn" aria-label="Notifications" id="notif-btn">
+              <i data-lucide="bell"></i>
+            </button>
+            <span class="notif-dot" id="notif-dot"></span>
+            
+            <!-- Notification Dropdown -->
+            <div id="notif-dropdown" class="card-glass hidden" style="position:absolute; top:calc(100% + 10px); right:0; width:320px; max-height:400px; overflow-y:auto; z-index:2000; padding:var(--space-2)">
+               <div style="display:flex; justify-content:space-between; align-items:center; padding:var(--space-2); border-bottom:1px solid var(--border); margin-bottom:var(--space-2)">
+                 <span style="font-size:0.85rem; font-weight:700">Notifications</span>
+                 <button id="clear-notifs" class="btn-xs" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer">Mark all read</button>
+               </div>
+               <div id="notif-list" style="display:flex; flex-direction:column; gap:4px">
+                 <!-- Populated by app.js -->
+               </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Views Container -->
+      <main class="main-content" id="main-content">
+        <!-- Dashboard View -->
+        <section class="view active" id="view-dashboard"></section>
+        <!-- Kanban View -->
+        <section class="view" id="view-kanban"></section>
+        <!-- Timeline View -->
+        <section class="view" id="view-timeline"></section>
+        <!-- Workload View -->
+        <section class="view" id="view-workload"></section>
+        <!-- Focus Mode View -->
+        <section class="view" id="view-focus"></section>
+        <!-- Team View -->
+        <section class="view" id="view-team"></section>
+        <!-- Appointments View -->
+        <section class="view" id="view-appointments"></section>
+        <!-- Logs View -->
+        <section class="view" id="view-logs"></section>
+        <!-- Settings View -->
+        <section class="view" id="view-settings"></section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Hidden Import Input -->
+  <input type="file" id="import-db-input" accept=".json" style="display:none" />
+
+  <!-- Scripts -->
+  <script type="module" src="js/data.js"></script>
+  <script type="module" src="js/dashboard.js"></script>
+  <script type="module" src="js/kanban.js"></script>
+  <script type="module" src="js/timeline.js"></script>
+  <script type="module" src="js/workload.js"></script>
+  <script type="module" src="js/focus.js"></script>
+  <script type="module" src="js/team.js"></script>
+  <script type="module" src="js/appointments.js"></script>
+  <script type="module" src="js/logs.js"></script>
+  <script type="module" src="js/command.js"></script>
+  <script type="module" src="js/settings.js"></script>
+  <script type="module" src="js/auth.js"></script>
+  <script type="module" src="js/app.js"></script>
+  
+  <!-- Register Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(registration => {
+            console.log('ServiceWorker registered with scope:', registration.scope);
+          })
+          .catch(error => {
+            console.error('ServiceWorker registration failed:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
