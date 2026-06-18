@@ -26,7 +26,6 @@ export function renderKanban(projectId) {
           <option value="">All Projects</option>
           ${projects.map(p => `<option value="${p.id}" ${p.id===activeProjectId?'selected':''}>${p.emoji} ${p.name}</option>`).join('')}
         </select>
-        <button class="btn btn-primary btn-sm" id="kanban-add-task"><i data-lucide="plus"></i>New Task</button>
       </div>
     </div>
     <div class="kanban-board" id="kanban-board">
@@ -84,7 +83,6 @@ function attachKanbanEvents() {
   });
 
   // Add task buttons
-  document.getElementById('kanban-add-task')?.addEventListener('click', () => window.openCreateTask(null, activeProjectId));
   document.querySelectorAll('.kanban-add-btn').forEach(btn => {
     btn.addEventListener('click', e => { e.stopPropagation(); window.openCreateTask(btn.dataset.col, activeProjectId); });
   });

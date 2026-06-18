@@ -21,6 +21,7 @@ import {
 // ---- State ----
 let currentView      = 'dashboard';
 let currentProjectId = null;
+let lastKanbanProjectId = null;
 let activeTimers     = {}; // taskId → { start, elapsed }
 
 // ---- Init ----
@@ -54,6 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   safeInit('Detail Modal', () => initTaskModal());
   safeInit('Topbar', () => initTopbar());
   safeInit('Sidebar Events', () => initSidebar());
+  safeInit('Custom Project Select', () => initCustomProjectSelect());
 
   // Show mood check-in if not done today
   safeInit('Mood Prompt', () => {
@@ -74,7 +76,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ---- Router ----
 function navigateTo(view, projectId) {
   currentView      = view;
-  currentProjectId = projectId || null;
+  
+  if (view === 'kanban') {
+    if (projectId !== undefined) {
+      currentProjectId = projectId;
+      lastKanbanProjectId = projectId;
+    } else {
+      currentProjectId = lastKanbanProjectId;
+    }
+  } else {
+    currentProjectId = projectId || null;
+  }
 
   // Update nav active states
   document.querySelectorAll('.nav-item[data-view]').forEach(el => {
@@ -205,6 +217,122 @@ function initSidebar() {
 
   // Mood trigger
   document.getElementById('mood-trigger')?.addEventListener('click', showMoodModal);
+}
+
+function initCustomProjectSelect() {
+  const container = document.getElementById('project-custom-select');
+  const trigger = container?.querySelector('.custom-select-trigger');
+  const dropdown = container?.querySelector('.custom-select-dropdown');
+  const searchInput = container?.querySelector('.custom-select-search-input');
+  const hiddenSelect = document.getElementById('task-project-select');
+  
+  if (!container || !trigger || !dropdown || !searchInput) return;
+
+  // Toggle dropdown on click
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = container.classList.contains('open');
+    if (isOpen) {
+      closeCustomSelect();
+    } else {
+      openCustomSelect();
+    }
+  });
+
+  // Prevent closing when clicking inside the dropdown search wrapper
+  dropdown.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // Filter options on search input
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase().trim();
+    const options = container.querySelectorAll('.custom-select-option');
+    let matchCount = 0;
+    
+    options.forEach(opt => {
+      const text = opt.textContent.toLowerCase();
+      if (text.includes(query)) {
+        opt.classList.remove('hidden');
+        matchCount++;
+      } else {
+        opt.classList.add('hidden');
+      }
+    });
+
+    // Handle no results
+    let noResultsMsg = container.querySelector('.custom-select-no-results');
+    if (matchCount === 0) {
+      if (!noResultsMsg) {
+        noResultsMsg = document.createElement('div');
+        noResultsMsg.className = 'custom-select-no-results';
+        noResultsMsg.textContent = 'No projects found';
+        container.querySelector('.custom-select-options').appendChild(noResultsMsg);
+      }
+    } else if (noResultsMsg) {
+      noResultsMsg.remove();
+    }
+  });
+
+  // Handle selection delegation
+  const optionsList = document.getElementById('custom-select-options-list');
+  optionsList?.addEventListener('click', (e) => {
+    const option = e.target.closest('.custom-select-option');
+    if (!option) return;
+
+    const value = option.dataset.value;
+    const emoji = option.dataset.emoji;
+    const name = option.dataset.name;
+
+    // Update active option
+    container.querySelectorAll('.custom-select-option').forEach(opt => {
+      opt.classList.toggle('selected', opt === option);
+    });
+
+    // Sync to hidden select
+    if (hiddenSelect) {
+      hiddenSelect.value = value;
+      hiddenSelect.dispatchEvent(new Event('change'));
+    }
+
+    // Update trigger label
+    const selectedValEl = trigger.querySelector('.custom-select-selected-value');
+    if (selectedValEl) {
+      selectedValEl.innerHTML = `<span class="project-dot-icon" style="margin-right: 8px;">${emoji}</span> ${name}`;
+    }
+
+    // Close
+    closeCustomSelect();
+  });
+
+  // Global document click to close dropdown when clicking outside
+  document.addEventListener('click', () => {
+    closeCustomSelect();
+  });
+  
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeCustomSelect();
+    }
+  });
+
+  function openCustomSelect() {
+    container.classList.add('open');
+    dropdown.classList.remove('hidden');
+    searchInput.value = '';
+    // focus search
+    setTimeout(() => searchInput.focus(), 50);
+    // reset options visibility
+    container.querySelectorAll('.custom-select-option').forEach(opt => opt.classList.remove('hidden'));
+    const noResultsMsg = container.querySelector('.custom-select-no-results');
+    if (noResultsMsg) noResultsMsg.remove();
+  }
+
+  function closeCustomSelect() {
+    container.classList.remove('open');
+    dropdown.classList.add('hidden');
+  }
 }
 
 function initTopbar() {
@@ -361,11 +489,55 @@ function closeCreateTask() {
 window.openCreateTask = function(defaultStatus, defaultProjectId) {
   console.log('Nexus PM: Opening Create Task modal...', { defaultStatus, defaultProjectId, currentProjectId });
   try {
-    // Populate project select
+    const projects = getProjects() || [];
+    const targetProjId = defaultProjectId || currentProjectId || (projects[0]?.id);
+
+    // Populate project select (hidden)
     const projSel = document.getElementById('task-project-select');
     if (projSel) {
-      const projects = getProjects() || [];
-      projSel.innerHTML = projects.map(p => `<option value="${p.id}" ${p.id===(defaultProjectId||currentProjectId)?'selected':''}>${p.emoji} ${p.name}</option>`).join('');
+      projSel.innerHTML = projects.map(p => `<option value="${p.id}" ${p.id===targetProjId?'selected':''}>${p.emoji} ${p.name}</option>`).join('');
+      projSel.value = targetProjId;
+    }
+
+    // Populate custom select options
+    const customOptionsList = document.getElementById('custom-select-options-list');
+    const customTriggerValue = document.querySelector('#project-custom-select .custom-select-selected-value');
+
+    if (customOptionsList) {
+      customOptionsList.innerHTML = projects.map(p => `
+        <div class="custom-select-option ${p.id === targetProjId ? 'selected' : ''}" 
+             data-value="${p.id}" 
+             data-emoji="${p.emoji}" 
+             data-name="${p.name}">
+          <span class="custom-select-option-emoji" style="margin-right: 8px;">${p.emoji}</span>
+          <span class="custom-select-option-name">${p.name}</span>
+        </div>
+      `).join('');
+    }
+
+    // Set custom trigger label
+    if (customTriggerValue) {
+      const selectedProj = projects.find(p => p.id === targetProjId);
+      if (selectedProj) {
+        customTriggerValue.innerHTML = `<span class="project-dot-icon" style="margin-right: 8px;">${selectedProj.emoji}</span> ${selectedProj.name}`;
+      } else {
+        customTriggerValue.textContent = 'Select Project...';
+      }
+    }
+
+    // Reset dropdown search state
+    const customContainer = document.getElementById('project-custom-select');
+    const searchInput = customContainer?.querySelector('.custom-select-search-input');
+    const dropdown = customContainer?.querySelector('.custom-select-dropdown');
+    
+    if (customContainer) {
+      customContainer.classList.remove('open');
+    }
+    if (dropdown) {
+      dropdown.classList.add('hidden');
+    }
+    if (searchInput) {
+      searchInput.value = '';
     }
 
     // Populate assignee select based on hierarchy

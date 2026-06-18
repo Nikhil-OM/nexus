@@ -70,8 +70,23 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="task-project-select">Project *</label>
-              <select id="task-project-select" required></select>
+              <label for="task-project-search">Project *</label>
+              <div class="custom-select-container" id="project-custom-select">
+                <div class="custom-select-trigger" tabindex="0">
+                  <span class="custom-select-selected-value">Select Project...</span>
+                  <i data-lucide="chevron-down" class="custom-select-arrow"></i>
+                </div>
+                <div class="custom-select-dropdown hidden">
+                  <div class="custom-select-search-wrapper">
+                    <i data-lucide="search" class="custom-select-search-icon"></i>
+                    <input type="text" id="task-project-search" class="custom-select-search-input" placeholder="Type to search..." autocomplete="off" />
+                  </div>
+                  <div class="custom-select-options" id="custom-select-options-list">
+                    <!-- Rendered dynamically by app.js -->
+                  </div>
+                </div>
+              </div>
+              <select id="task-project-select" required style="display:none"></select>
             </div>
             <div class="form-group">
               <label for="task-status-select">Status</label>
@@ -381,6 +396,37 @@
 
   <!-- Hidden Import Input -->
   <input type="file" id="import-db-input" accept=".json" style="display:none" />
+
+  <!-- Credentials Modal -->
+  <div id="credentials-modal" class="modal-overlay hidden">
+    <div class="modal-box" role="dialog" aria-labelledby="credentials-modal-title" style="max-width:440px">
+      <div class="modal-header">
+        <h2 id="credentials-modal-title">Member Created! 🎉</h2>
+        <button id="credentials-modal-close" class="icon-btn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" style="text-align: center; display: flex; flex-direction: column; gap: var(--space-4);">
+        <p style="color:var(--text-secondary); font-size:0.9rem">Please copy the secure credentials for the new team member. The password will not be shown again.</p>
+        <div style="background:var(--bg-elevated); padding:var(--space-4); border-radius:var(--radius-md); border:1px solid var(--border-brand); text-align: left;">
+          <div style="margin-bottom:var(--space-3)">
+            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase">Name</label>
+            <div id="cred-name" style="font-weight:600; font-size:0.95rem; margin-top:2px; color:var(--text-primary)"></div>
+          </div>
+          <div style="margin-bottom:var(--space-3)">
+            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase">Email ID</label>
+            <div id="cred-email" style="font-weight:600; font-size:0.95rem; margin-top:2px; color:var(--text-primary)"></div>
+          </div>
+          <div>
+            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase">Generated Password</label>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:4px">
+              <input type="text" id="cred-password" readonly style="font-family:monospace; background:rgba(0,0,0,0.2); font-weight:700; flex:1; padding:6px 10px; border:1px solid var(--border)" />
+              <button class="btn btn-ghost btn-xs" id="copy-password-btn" style="height:34px; padding:0 12px">Copy</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="credentials-modal-ok-btn" style="align-self: center;">Done</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Scripts -->
   <script type="module" src="js/data.js"></script>

@@ -16,8 +16,9 @@ export function renderTeam() {
       <!-- Add Member Bar -->
       <div class="card" style="margin-bottom:var(--space-6);padding:var(--space-3) var(--space-4)">
         <form id="add-member-form" style="display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap">
-          <input type="text" id="new-member-name" placeholder="Member Name (e.g. Jane Doe)" required style="flex:1;min-width:200px" />
-          <input type="text" id="new-member-role" placeholder="Role (e.g. UI/UX Designer)" required style="flex:1;min-width:200px" />
+          <input type="text" id="new-member-name" placeholder="Member Name (e.g. Jane Doe)" required style="flex:1;min-width:180px" />
+          <input type="text" id="new-member-role" placeholder="Role (e.g. UI/UX Designer)" required style="flex:1;min-width:180px" />
+          <input type="email" id="new-member-email" placeholder="Email (e.g. jane@nexus.com)" required style="flex:1.2;min-width:220px" />
           <div style="display:flex;align-items:center;gap:var(--space-2)">
             <label for="new-member-color" style="font-size:0.8rem;color:var(--text-secondary);font-weight:600">Color:</label>
             <input type="color" id="new-member-color" value="#06d6a0" title="Member Color" style="width:36px;height:36px;padding:0;border:none;border-radius:4px;cursor:pointer;background:transparent" />
@@ -124,11 +125,96 @@ export function renderTeam() {
     e.preventDefault();
     const name = document.getElementById('new-member-name').value.trim();
     const role = document.getElementById('new-member-role').value.trim();
+    const email = document.getElementById('new-member-email').value.trim();
     const color = document.getElementById('new-member-color').value;
     
-    if (name && role) {
-      createMember({ name, role, color });
+    if (name && role && email) {
+      const password = generateSecurePassword();
+      createMember({ name, role, email, color, password });
+      
+      // Show credentials modal
+      showCredentialsModal(name, email, password);
+      
       renderTeam(); // Automatically re-renders the team grid
     }
   });
+}
+
+function generateSecurePassword() {
+  const lowercase = "abcdefghijklmnopqrstuvwxyz";
+  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const numbers = "0123456789";
+  const symbols = "!@#$%^&*()_+~|}{[]:;?><,./-=";
+  const allChars = lowercase + uppercase + numbers + symbols;
+  
+  let password = "";
+  // Ensure at least one of each type is in the password for high security
+  password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+  password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+  password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+  password += symbols.charAt(Math.floor(Math.random() * symbols.length));
+  
+  // Fill the rest of the 12 characters
+  for (let i = 0; i < 8; i++) {
+    password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+  }
+  
+  // Shuffle password characters
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
+}
+
+function showCredentialsModal(name, email, password) {
+  const modal = document.getElementById('credentials-modal');
+  const nameEl = document.getElementById('cred-name');
+  const emailEl = document.getElementById('cred-email');
+  const passwordInput = document.getElementById('cred-password');
+  const copyBtn = document.getElementById('copy-password-btn');
+  const closeBtn = document.getElementById('credentials-modal-close');
+  const okBtn = document.getElementById('credentials-modal-ok-btn');
+
+  if (!modal || !nameEl || !emailEl || !passwordInput) return;
+
+  nameEl.textContent = name;
+  emailEl.textContent = email;
+  passwordInput.value = password;
+
+  if (copyBtn) {
+    copyBtn.textContent = 'Copy';
+    copyBtn.className = 'btn btn-ghost btn-xs';
+    
+    // Remove previous listeners by replacing the element
+    const newCopyBtn = copyBtn.cloneNode(true);
+    copyBtn.parentNode.replaceChild(newCopyBtn, copyBtn);
+    
+    newCopyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(password).then(() => {
+        newCopyBtn.textContent = 'Copied!';
+        newCopyBtn.className = 'btn btn-teal btn-xs';
+        setTimeout(() => {
+          newCopyBtn.textContent = 'Copy';
+          newCopyBtn.className = 'btn btn-ghost btn-xs';
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy password: ', err);
+      });
+    });
+  }
+
+  const closeModal = () => {
+    modal.classList.add('hidden');
+  };
+
+  if (closeBtn) {
+    closeBtn.onclick = closeModal;
+  }
+  if (okBtn) {
+    okBtn.onclick = closeModal;
+  }
+
+  // Handle outside modal click
+  modal.onclick = (e) => {
+    if (e.target === modal) closeModal();
+  };
+
+  modal.classList.remove('hidden');
 }
