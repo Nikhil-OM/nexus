@@ -44,6 +44,16 @@ const SEED = {
   ],
   appointments: [
     { id:'a1', title:'Weekly Sync', date: new Date().toISOString().split('T')[0], startTime:'10:00', endTime:'11:00', participants:['u1','u2','u4'], creator:'u1' }
+  ],
+  roles: [
+    { id: 'r1', name: 'Owner', authority: 1 },
+    { id: 'r2', name: 'HR', authority: 2 },
+    { id: 'r3', name: 'Project Manager', authority: 3 },
+    { id: 'r4', name: 'Tech Lead', authority: 3 },
+    { id: 'r5', name: 'Senior Developer', authority: 4 },
+    { id: 'r6', name: 'UI/UX Designer', authority: 4 },
+    { id: 'r7', name: 'QA Tester', authority: 5 },
+    { id: 'r8', name: 'Junior Developer', authority: 5 }
   ]
 };
 
@@ -87,6 +97,7 @@ function init() {
   if (!data.projects) data.projects = [];
   if (!data.tasks) data.tasks = [];
   if (!data.moods) data.moods = {};
+  if (!data.roles || data.roles.length === 0) data.roles = JSON.parse(JSON.stringify(SEED.roles));
 
   // Heal currentUser if it doesn't exist
   if (!data.members.find(m => m.id === data.currentUser)) {
@@ -135,15 +146,9 @@ export function switchUser(userId) {
 }
 
 // --- Hierarchy & Permissions ---
-export const ROLE_HIERARCHY = {
-  'Owner': 1,
-  'HR': 2,
-  'Project Lead': 3,
-  'Manager': 3
-};
-
-export function getRoleLevel(role) {
-  return ROLE_HIERARCHY[role] || 4; // Defaults to 4 (Contributor)
+export function getRoleLevel(roleName) {
+  const role = (DB.roles || []).find(r => r.name === roleName);
+  return role ? role.authority : 4; // Defaults to 4
 }
 
 export function canUserAddMembers(user) {
@@ -169,6 +174,48 @@ export function createMember(member) {
   saveDB();
   return newMember;
 }
+
+export function updateMemberRole(memberId, newRole) {
+  const member = getMember(memberId);
+  if (member) {
+    member.role = newRole;
+    saveDB();
+  }
+}
+
+// --- Roles ---
+export function getRoles() {
+  return DB.roles || [];
+}
+
+export function createRole(role) {
+  const id = 'r' + Date.now();
+  const newRole = { id, ...role };
+  if (!DB.roles) DB.roles = [];
+  DB.roles.push(newRole);
+  logActivity(getCurrentUser().id, 'created_role', role.name);
+  saveDB();
+  return newRole;
+}
+
+export function updateRole(id, updates) {
+  const idx = DB.roles.findIndex(r => r.id === id);
+  if (idx !== -1) {
+    DB.roles[idx] = { ...DB.roles[idx], ...updates };
+    saveDB();
+  }
+  return DB.roles[idx];
+}
+
+export function deleteRole(id) {
+  const idx = DB.roles.findIndex(r => r.id === id);
+  if (idx !== -1) {
+    logActivity(getCurrentUser().id, 'deleted_role', DB.roles[idx].name);
+    DB.roles.splice(idx, 1);
+    saveDB();
+  }
+}
+// -------------
 
 export function createProject(project) {
   const id = 'p' + Date.now();

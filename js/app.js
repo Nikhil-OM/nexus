@@ -8,6 +8,7 @@ import { renderAppointments } from './appointments.js';
 import { renderLogs }       from './logs.js';
 import { renderSettings, initTheme, toggleTheme, loadAccent } from './settings.js';
 import { initCommand }      from './command.js';
+import { renderRoles }      from './roles.js';
 import {
   getProjects, getMembers, getTask, getTasks,
   createTask, updateTask, getMember, getCurrentUser,
@@ -99,7 +100,7 @@ function navigateTo(view, projectId) {
   if (target) target.classList.add('active');
 
   // Update breadcrumb
-  const labels = { dashboard:'Dashboard', kanban:'Kanban Board', timeline:'Timeline', workload:'Workload', focus:'Focus Mode', team:'Team', settings:'Settings', logs:'Activity Logs', appointments:'Appointments' };
+  const labels = { dashboard:'Dashboard', kanban:'Kanban Board', timeline:'Timeline', workload:'Workload', focus:'Focus Mode', team:'Team', roles: 'Roles', settings:'Settings', logs:'Activity Logs', appointments:'Appointments' };
   document.getElementById('breadcrumb').innerHTML = `<span>${labels[view] || view}</span>`;
 
   // Render view
@@ -110,6 +111,7 @@ function navigateTo(view, projectId) {
     case 'workload':     renderWorkload(); break;
     case 'focus':        renderFocus(); break;
     case 'team':         renderTeam(); break;
+    case 'roles':        renderRoles(); break;
     case 'appointments': renderAppointments(); break;
     case 'logs':         renderLogs(); break;
     case 'settings':     renderSettings(); break;

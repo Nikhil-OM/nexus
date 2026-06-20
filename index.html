@@ -291,6 +291,10 @@
           <i data-lucide="users"></i>
           <span>Team</span>
         </a>
+        <a href="#" class="nav-item" data-view="roles" id="nav-roles">
+          <i data-lucide="shield"></i>
+          <span>Roles</span>
+        </a>
         <a href="#" class="nav-item" data-view="appointments" id="nav-appointments">
           <i data-lucide="calendar"></i>
           <span>Appointments</span>
@@ -384,6 +388,8 @@
         <section class="view" id="view-focus"></section>
         <!-- Team View -->
         <section class="view" id="view-team"></section>
+        <!-- Roles View -->
+        <section class="view" id="view-roles"></section>
         <!-- Appointments View -->
         <section class="view" id="view-appointments"></section>
         <!-- Logs View -->
@@ -424,6 +430,33 @@
           </div>
         </div>
         <button class="btn btn-primary" id="credentials-modal-ok-btn" style="align-self: center;">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Member Modal -->
+  <div id="edit-member-modal" class="modal-overlay hidden">
+    <div class="modal-box" role="dialog" aria-labelledby="edit-member-title">
+      <div class="modal-header">
+        <h2 id="edit-member-title">Edit Member</h2>
+        <button id="edit-member-close" class="icon-btn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-member-form" class="task-form">
+          <input type="hidden" id="edit-member-id" />
+          <div class="form-group">
+            <label for="edit-member-name">Name</label>
+            <input id="edit-member-name" type="text" required />
+          </div>
+          <div class="form-group">
+            <label for="edit-member-role">Role</label>
+            <select id="edit-member-role" required></select>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="cancel-edit-member" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

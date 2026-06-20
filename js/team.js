@@ -1,4 +1,4 @@
-import { getMembers, getTasks, moodEmoji, moodColor, createMember, getCurrentUser, canUserAddMembers } from './data.js';
+import { getMembers, getTasks, moodEmoji, moodColor, createMember, getCurrentUser, canUserAddMembers, getRoles, updateMemberRole } from './data.js';
 
 export function renderTeam() {
   const members = getMembers();
@@ -17,7 +17,10 @@ export function renderTeam() {
       <div class="card" style="margin-bottom:var(--space-6);padding:var(--space-3) var(--space-4)">
         <form id="add-member-form" style="display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap">
           <input type="text" id="new-member-name" placeholder="Member Name (e.g. Jane Doe)" required style="flex:1;min-width:180px" />
-          <input type="text" id="new-member-role" placeholder="Role (e.g. UI/UX Designer)" required style="flex:1;min-width:180px" />
+          <select id="new-member-role" required style="flex:1;min-width:180px;background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px">
+            <option value="" disabled selected>Select Role</option>
+            ${getRoles().map(r => `<option value="${r.name}">${r.name}</option>`).join('')}
+          </select>
           <input type="email" id="new-member-email" placeholder="Email (e.g. jane@nexus.com)" required style="flex:1.2;min-width:220px" />
           <div style="display:flex;align-items:center;gap:var(--space-2)">
             <label for="new-member-color" style="font-size:0.8rem;color:var(--text-secondary);font-weight:600">Color:</label>
@@ -40,7 +43,14 @@ export function renderTeam() {
               ${m.initials}
               <span class="mood-indicator">${moodEmoji(latestMood)}</span>
             </div>
-            <div class="team-name">${m.name}</div>
+            <div class="team-name" style="display:flex; justify-content:space-between; align-items:center">
+              ${m.name}
+              ${canUserAddMembers(getCurrentUser()) ? `
+                <button class="icon-btn btn-xs edit-member-btn" data-id="${m.id}" data-name="${m.name}" data-role="${m.role}" title="Edit Role">
+                  <i data-lucide="edit-2"></i>
+                </button>
+              ` : ''}
+            </div>
             <div class="team-role">${m.role}</div>
 
             <!-- Mood history dots -->
@@ -138,6 +148,50 @@ export function renderTeam() {
       renderTeam(); // Automatically re-renders the team grid
     }
   });
+
+  document.querySelectorAll('.edit-member-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const name = btn.dataset.name;
+      const role = btn.dataset.role;
+
+      const modal = document.getElementById('edit-member-modal');
+      const nameInput = document.getElementById('edit-member-name');
+      const roleSelect = document.getElementById('edit-member-role');
+      const idInput = document.getElementById('edit-member-id');
+
+      if (!modal) return;
+
+      idInput.value = id;
+      nameInput.value = name;
+      nameInput.readOnly = true;
+      
+      roleSelect.innerHTML = getRoles().map(r => `<option value="${r.name}" ${r.name === role ? 'selected' : ''}>${r.name}</option>`).join('');
+
+      modal.classList.remove('hidden');
+    });
+  });
+
+  document.getElementById('edit-member-close')?.addEventListener('click', () => {
+    document.getElementById('edit-member-modal')?.classList.add('hidden');
+  });
+  document.getElementById('cancel-edit-member')?.addEventListener('click', () => {
+    document.getElementById('edit-member-modal')?.classList.add('hidden');
+  });
+
+  const editForm = document.getElementById('edit-member-form');
+  if (editForm) {
+    const newEditForm = editForm.cloneNode(true);
+    editForm.parentNode.replaceChild(newEditForm, editForm);
+    newEditForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-member-id').value;
+      const newRole = document.getElementById('edit-member-role').value;
+      updateMemberRole(id, newRole);
+      document.getElementById('edit-member-modal').classList.add('hidden');
+      renderTeam();
+    });
+  }
 }
 
 function generateSecurePassword() {
