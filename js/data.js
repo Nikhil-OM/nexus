@@ -1,5 +1,26 @@
-// ===== DATA LAYER — LocalStorage + Seed Data =====
+// ===== DATA LAYER — LocalStorage (demo) + Firestore (live) =====
+// When FIREBASE_ENABLED=true in firebase-config.js, all reads come
+// from CLOUD_DB (loaded from Firestore) and all writes go to Firestore.
+// When false, the app runs entirely in localStorage demo mode.
+import { FIREBASE_ENABLED } from './firebase-config.js';
+import {
+  CLOUD_DB,
+  fsCreateMember, fsUpdateMember,
+  fsCreateProject,
+  fsCreateTask, fsUpdateTask, fsDeleteTask,
+  fsAddComment,
+  fsLogActivity, fsCreateAppointment,
+  fsAddNotification, fsMarkAllNotifsRead,
+  fsSetMood,
+  fsCreateRole, fsUpdateRole, fsDeleteRole,
+} from './backend.js';
+
 const STORAGE_KEY = 'nexus_pm_data';
+
+// Returns the active in-memory store (Firestore cache OR localStorage)
+function activeDB() {
+  return (FIREBASE_ENABLED && CLOUD_DB) ? CLOUD_DB : DB;
+}
 
 const SEED = {
   currentUser: 'u1',
@@ -117,51 +138,57 @@ export const DB = init();
 
 export function saveDB() { save(DB); }
 
-export function getProjects() { 
+export function getProjects() {
+  const store = activeDB();
   const user = getCurrentUser();
-  if (!user) return DB.projects || [];
-  if (getRoleLevel(user.role) === 1) return DB.projects || []; 
-  return (DB.projects || []).filter(p => p.members && p.members.includes(user.id));
+  if (!user) return store.projects || [];
+  if (getRoleLevel(user.role) === 1) return store.projects || [];
+  return (store.projects || []).filter(p => p.members && p.members.includes(user.id));
 }
-export function getProject(id) { return (DB.projects || []).find(p => p.id === id); }
-export function getTasks(projectId) { 
-  const tasks = DB.tasks || [];
-  return projectId ? tasks.filter(t => t.projectId === projectId) : tasks; 
+export function getProject(id) { return (activeDB().projects || []).find(p => p.id === id); }
+export function getTasks(projectId) {
+  const tasks = activeDB().tasks || [];
+  return projectId ? tasks.filter(t => t.projectId === projectId) : tasks;
 }
-export function getTask(id) { return (DB.tasks || []).find(t => t.id === id); }
-export function getMembers() { return DB.members || []; }
-export function getMember(id) { 
-  return (DB.members || []).find(m => m.id === id) || null;
+export function getTask(id) { return (activeDB().tasks || []).find(t => t.id === id); }
+export function getMembers() { return activeDB().members || []; }
+export function getMember(id) {
+  return (activeDB().members || []).find(m => m.id === id) || null;
 }
 
-export function getCurrentUser() { 
-  const user = getMember(DB.currentUser);
-  if (!user && DB.members.length > 0) return DB.members[0];
-  return user;
+export function getCurrentUser() {
+  const store = activeDB();
+  const user = (store.members || []).find(m => m.id === store.currentUser);
+  if (!user && store.members && store.members.length > 0) return store.members[0];
+  return user || null;
 }
 
 export function switchUser(userId) {
-  DB.currentUser = userId;
-  saveDB();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    CLOUD_DB.currentUser = userId;
+  } else {
+    DB.currentUser = userId;
+    saveDB();
+  }
 }
 
 // --- Hierarchy & Permissions ---
 export function getRoleLevel(roleName) {
-  const role = (DB.roles || []).find(r => r.name === roleName);
-  return role ? role.authority : 4; // Defaults to 4
+  const role = (activeDB().roles || []).find(r => r.name === roleName);
+  return role ? role.authority : 4;
 }
 
 export function canUserAddMembers(user) {
   if (!user) return false;
-  return getRoleLevel(user.role) <= 2; // Level 1 (Owner) or Level 2 (HR)
+  return getRoleLevel(user.role) <= 2;
 }
 
 export function getAssignableMembers(currentUser) {
   const myLevel = getRoleLevel(currentUser.role);
   return getMembers().filter(m => {
-    if (myLevel <= 2) return true; // Owner/HR can assign to anyone
-    if (myLevel === 3) return getRoleLevel(m.role) >= 3; // Managers assign to managers & below
-    return m.id === currentUser.id; // Contributors can only assign to themselves
+    if (myLevel <= 2) return true;
+    if (myLevel === 3) return getRoleLevel(m.role) >= 3;
+    return m.id === currentUser.id;
   });
 }
 // -------------------------------
@@ -170,8 +197,12 @@ export function createMember(member) {
   const id = 'u' + Date.now();
   const initials = member.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
   const newMember = { id, initials, mood: [3,3,3,3,3], taskCount: 0, ...member };
-  DB.members.push(newMember);
-  saveDB();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsCreateMember(newMember); // async, fire-and-forget
+  } else {
+    DB.members.push(newMember);
+    saveDB();
+  }
   return newMember;
 }
 
@@ -179,40 +210,56 @@ export function updateMemberRole(memberId, newRole) {
   const member = getMember(memberId);
   if (member) {
     member.role = newRole;
-    saveDB();
+    if (FIREBASE_ENABLED && CLOUD_DB) {
+      fsUpdateMember(memberId, { role: newRole }); // async
+    } else {
+      saveDB();
+    }
   }
 }
 
 // --- Roles ---
 export function getRoles() {
-  return DB.roles || [];
+  return activeDB().roles || [];
 }
 
 export function createRole(role) {
   const id = 'r' + Date.now();
   const newRole = { id, ...role };
-  if (!DB.roles) DB.roles = [];
-  DB.roles.push(newRole);
+  const store = activeDB();
+  if (!store.roles) store.roles = [];
   logActivity(getCurrentUser().id, 'created_role', role.name);
-  saveDB();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsCreateRole(newRole);
+  } else {
+    store.roles.push(newRole);
+    saveDB();
+  }
   return newRole;
 }
 
 export function updateRole(id, updates) {
-  const idx = DB.roles.findIndex(r => r.id === id);
+  const store = activeDB();
+  const idx = store.roles.findIndex(r => r.id === id);
   if (idx !== -1) {
-    DB.roles[idx] = { ...DB.roles[idx], ...updates };
-    saveDB();
+    store.roles[idx] = { ...store.roles[idx], ...updates };
+    if (FIREBASE_ENABLED && CLOUD_DB) fsUpdateRole(id, updates);
+    else saveDB();
   }
-  return DB.roles[idx];
+  return store.roles[idx];
 }
 
 export function deleteRole(id) {
-  const idx = DB.roles.findIndex(r => r.id === id);
+  const store = activeDB();
+  const idx = store.roles.findIndex(r => r.id === id);
   if (idx !== -1) {
-    logActivity(getCurrentUser().id, 'deleted_role', DB.roles[idx].name);
-    DB.roles.splice(idx, 1);
-    saveDB();
+    logActivity(getCurrentUser().id, 'deleted_role', store.roles[idx].name);
+    if (FIREBASE_ENABLED && CLOUD_DB) {
+      fsDeleteRole(id);
+    } else {
+      store.roles.splice(idx, 1);
+      saveDB();
+    }
   }
 }
 // -------------
@@ -220,78 +267,105 @@ export function deleteRole(id) {
 export function createProject(project) {
   const id = 'p' + Date.now();
   const newProject = { id, ...project };
-  DB.projects.push(newProject);
   logActivity(getCurrentUser().id, 'created_project', project.name);
-  saveDB();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsCreateProject(newProject); // async
+  } else {
+    DB.projects.push(newProject);
+    saveDB();
+  }
   return newProject;
 }
 
 export function createTask(task) {
   const id = 't' + Date.now();
-  const newTask = { id, timeLogged: 0, tags: [], ...task };
-  DB.tasks.push(newTask);
+  const newTask = { id, timeLogged: 0, tags: [], comments: [], ...task };
   logActivity(getCurrentUser().id, 'created_task', task.title);
-  
+
   if (task.assignee && task.assignee !== getCurrentUser().id) {
     addNotification(task.assignee, `${getCurrentUser().name} assigned a new task to you: "${task.title}"`, 'assignment', id);
   }
 
-  saveDB();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsCreateTask(newTask); // async
+  } else {
+    DB.tasks.push(newTask);
+    saveDB();
+  }
   return newTask;
 }
 export function updateTask(id, updates) {
-  const idx = DB.tasks.findIndex(t => t.id === id);
-  if (idx !== -1) { 
-    const oldTask = { ...DB.tasks[idx] };
-    DB.tasks[idx] = { ...DB.tasks[idx], ...updates }; 
-    
+  const store = activeDB();
+  const idx = store.tasks.findIndex(t => t.id === id);
+  if (idx !== -1) {
+    const oldTask = { ...store.tasks[idx] };
+    store.tasks[idx] = { ...store.tasks[idx], ...updates };
+
     if (updates.status === 'done' && oldTask.status !== 'done') {
-      logActivity(getCurrentUser().id, 'completed_task', DB.tasks[idx].title);
-    }
-    
-    if (updates.assignee && updates.assignee !== oldTask.assignee && updates.assignee !== getCurrentUser().id) {
-      addNotification(updates.assignee, `${getCurrentUser().name} assigned a task to you: "${DB.tasks[idx].title}"`, 'assignment', id);
+      logActivity(getCurrentUser().id, 'completed_task', store.tasks[idx].title);
     }
 
-    saveDB(); 
+    if (updates.assignee && updates.assignee !== oldTask.assignee && updates.assignee !== getCurrentUser().id) {
+      addNotification(updates.assignee, `${getCurrentUser().name} assigned a task to you: "${store.tasks[idx].title}"`, 'assignment', id);
+    }
+
+    if (FIREBASE_ENABLED && CLOUD_DB) {
+      fsUpdateTask(id, updates); // async
+    } else {
+      saveDB();
+    }
   }
-  return DB.tasks[idx];
+  return store.tasks[idx];
 }
 export function deleteTask(id) {
-  const idx = DB.tasks.findIndex(t => t.id === id);
-  if (idx !== -1) { 
-    logActivity(getCurrentUser().id, 'deleted_task', DB.tasks[idx].title);
-    DB.tasks.splice(idx, 1); 
-    saveDB(); 
+  const store = activeDB();
+  const idx = store.tasks.findIndex(t => t.id === id);
+  if (idx !== -1) {
+    logActivity(getCurrentUser().id, 'deleted_task', store.tasks[idx].title);
+    if (FIREBASE_ENABLED && CLOUD_DB) {
+      fsDeleteTask(id); // async
+    } else {
+      store.tasks.splice(idx, 1);
+      saveDB();
+    }
   }
 }
 
 // --- Logs & Appointments ---
 export function logActivity(userId, action, details) {
   const log = { id: 'l' + Date.now(), userId, action, details, timestamp: new Date().toISOString() };
-  DB.logs.unshift(log); // Prepend to keep newest first
-  if (DB.logs.length > 200) DB.logs.pop(); // Keep array size manageable
-  saveDB();
+  const store = activeDB();
+  store.logs.unshift(log);
+  if (store.logs.length > 200) store.logs.pop();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsLogActivity(log); // async
+  } else {
+    saveDB();
+  }
 }
 
 export function getLogs() {
-  return DB.logs || [];
+  return activeDB().logs || [];
 }
 
 export function getAppointments() {
-  return DB.appointments || [];
+  return activeDB().appointments || [];
 }
 
 export function getAppointmentsForUser(userId) {
-  return (DB.appointments || []).filter(a => a.participants.includes(userId));
+  return (activeDB().appointments || []).filter(a => a.participants.includes(userId));
 }
 
 export function createAppointment(appt) {
   const id = 'a' + Date.now();
   const newAppt = { id, ...appt, creator: getCurrentUser().id };
-  DB.appointments.push(newAppt);
   logActivity(getCurrentUser().id, 'created_appointment', appt.title);
-  saveDB();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsCreateAppointment(newAppt); // async
+  } else {
+    DB.appointments.push(newAppt);
+    saveDB();
+  }
   return newAppt;
 }
 
@@ -303,7 +377,7 @@ export function isUserFree(userId, date, startTime, endTime) {
 export function addTaskComment(taskId, text) {
   const task = getTask(taskId);
   if (!task) return;
-  
+
   const user = getCurrentUser();
   const comment = {
     id: 'c' + Date.now(),
@@ -311,28 +385,34 @@ export function addTaskComment(taskId, text) {
     text,
     timestamp: new Date().toISOString()
   };
-  
+
   if (!task.comments) task.comments = [];
   task.comments.push(comment);
-  
+
   // Handle mentions: @Name
+  const store = activeDB();
   const mentions = text.match(/@(\w+)/g);
   if (mentions) {
     mentions.forEach(m => {
       const namePart = m.substring(1).toLowerCase();
-      const mentionedUser = DB.members.find(u => u.name.toLowerCase().includes(namePart));
+      const mentionedUser = store.members.find(u => u.name.toLowerCase().includes(namePart));
       if (mentionedUser && mentionedUser.id !== user.id) {
         addNotification(mentionedUser.id, `${user.name} mentioned you in a comment: "${text.substring(0, 30)}..."`, 'mention', taskId);
       }
     });
   }
-  
-  saveDB();
+
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsAddComment(taskId, comment); // async
+  } else {
+    saveDB();
+  }
   return comment;
 }
 
 export function addNotification(userId, text, type, relatedId) {
-  if (!DB.notifications) DB.notifications = [];
+  const store = activeDB();
+  if (!store.notifications) store.notifications = [];
   const notif = {
     id: 'n' + Date.now(),
     userId,
@@ -342,19 +422,27 @@ export function addNotification(userId, text, type, relatedId) {
     read: false,
     timestamp: new Date().toISOString()
   };
-  DB.notifications.unshift(notif);
-  if (DB.notifications.length > 100) DB.notifications.pop();
-  saveDB();
+  store.notifications.unshift(notif);
+  if (store.notifications.length > 100) store.notifications.pop();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsAddNotification(notif); // async
+  } else {
+    saveDB();
+  }
 }
 
 export function getNotifications(userId) {
-  return (DB.notifications || []).filter(n => n.userId === userId);
+  return (activeDB().notifications || []).filter(n => n.userId === userId);
 }
 
 export function markAllNotificationsRead(userId) {
   const userNotifs = getNotifications(userId);
   userNotifs.forEach(n => n.read = true);
-  saveDB();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsMarkAllNotifsRead(userId); // async
+  } else {
+    saveDB();
+  }
 }
 
 // --- Data Management ---
@@ -388,15 +476,21 @@ export function importData(jsonData) {
 
 export function setMood(userId, mood) {
   const today = new Date().toISOString().split('T')[0];
-  if (!DB.moods[today]) DB.moods[today] = {};
-  DB.moods[today][userId] = mood;
+  const store = activeDB();
+  if (!store.moods[today]) store.moods[today] = {};
+  store.moods[today][userId] = mood;
   const member = getMember(userId);
   if (member) { member.mood = [...member.mood.slice(-4), mood]; }
-  saveDB();
+  if (FIREBASE_ENABLED && CLOUD_DB) {
+    fsSetMood(userId, mood); // async
+    fsUpdateMember(userId, { mood: member?.mood || [3,3,3,3,mood] }); // async
+  } else {
+    saveDB();
+  }
 }
 export function getTodayMood(userId) {
   const today = new Date().toISOString().split('T')[0];
-  return DB.moods[today]?.[userId] ?? null;
+  return activeDB().moods[today]?.[userId] ?? null;
 }
 
 export function calcHealthScore(projectId) {
