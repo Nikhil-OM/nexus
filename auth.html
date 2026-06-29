@@ -9,10 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
-  <!-- Firebase SDKs (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -320,7 +317,7 @@
     <div class="auth-box">
       <div class="auth-tabs">
         <button class="tab-btn active" id="tab-signin" onclick="switchTab('signin')">Sign In</button>
-        <button class="tab-btn" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
+        <button class="tab-btn" id="tab-signup" onclick="switchTab('signup')">Create your own business</button>
       </div>
 
       <!-- Sign In Form -->
@@ -366,7 +363,7 @@
             <span style="font-size:0.82rem;color:var(--text-secondary)">Pick a color to represent you in the app</span>
           </div>
         </div>
-        <button type="submit" class="submit-btn" id="signup-btn">Create My Account</button>
+        <button type="submit" class="submit-btn" id="signup-btn">Create My Business</button>
       </form>
 
       <!-- Demo mode notice (shown when Firebase is disabled) -->
@@ -381,8 +378,7 @@
 </div>
 
 <script type="module">
-  import { firebaseConfig, FIREBASE_ENABLED } from './js/firebase-config.js';
-  import { signUpWithEmail } from './js/backend.js';
+  import { login, signUp } from './js/auth.js';
 
   // ---- Tab switch ----
   window.switchTab = function(tab) {
@@ -391,29 +387,6 @@
     document.getElementById('form-signin').classList.toggle('visible', tab === 'signin');
     document.getElementById('form-signup').classList.toggle('visible', tab === 'signup');
   };
-
-  // ---- Check Firebase mode ----
-  if (!FIREBASE_ENABLED) {
-    document.getElementById('demo-notice').style.display = 'block';
-    document.getElementById('form-signin').style.opacity = '0.4';
-    document.getElementById('form-signup').style.opacity = '0.4';
-    document.getElementById('signin-btn').disabled = true;
-    document.getElementById('signup-btn').disabled = true;
-  } else {
-    // Initialize Firebase
-    try {
-      firebase.initializeApp(firebaseConfig);
-
-      // If already signed in, go straight to app
-      firebase.auth().onAuthStateChanged((user) => {
-        if (user) window.location.href = 'index.html';
-      });
-    } catch (e) {
-      if (!e.message.includes('already exists')) {
-        console.error('Firebase init error:', e);
-      }
-    }
-  }
 
   // ---- Sign In ----
   window.handleSignIn = async function(e) {
@@ -428,12 +401,12 @@
     btn.innerHTML = '<span class="loading-spinner"></span>Signing in…';
 
     try {
-      await firebase.auth().signInWithEmailAndPassword(email, password);
+      await login(email, password);
       window.location.href = 'index.html';
     } catch (err) {
       btn.disabled = false;
       btn.textContent = 'Sign In';
-      errorEl.textContent = friendlyError(err.code);
+      errorEl.textContent = err.message || 'Invalid credentials';
       errorEl.classList.add('visible');
     }
   };
@@ -457,36 +430,17 @@
     btn.innerHTML = '<span class="loading-spinner"></span>Creating account…';
 
     try {
-      await signUpWithEmail(email, password, name, null, color);
+      await signUp(email, password, name, color);
       successEl.textContent = `🎉 Welcome, ${fname}! Redirecting to your workspace…`;
       successEl.classList.add('visible');
       setTimeout(() => { window.location.href = 'index.html'; }, 1500);
     } catch (err) {
       btn.disabled = false;
       btn.textContent = 'Create My Account';
-      errorEl.textContent = friendlyError(err.code);
+      errorEl.textContent = err.message || 'Error creating account';
       errorEl.classList.add('visible');
     }
   };
-
-  // ---- Demo fallback ----
-  window.enterDemoMode = function() {
-    window.location.href = 'index.html';
-  };
-
-  // ---- Friendly error messages ----
-  function friendlyError(code) {
-    const map = {
-      'auth/user-not-found':     'No account found with that email.',
-      'auth/wrong-password':     'Incorrect password. Please try again.',
-      'auth/email-already-in-use': 'That email is already registered. Try signing in.',
-      'auth/weak-password':      'Password must be at least 8 characters.',
-      'auth/invalid-email':      'Please enter a valid email address.',
-      'auth/too-many-requests':  'Too many attempts. Please wait a moment and try again.',
-      'auth/network-request-failed': 'Network error. Check your connection.',
-    };
-    return map[code] || 'Something went wrong. Please try again.';
-  }
 </script>
 </body>
 </html>

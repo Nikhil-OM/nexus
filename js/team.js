@@ -43,10 +43,10 @@ export function renderTeam() {
               ${m.initials}
               <span class="mood-indicator">${moodEmoji(latestMood)}</span>
             </div>
-            <div class="team-name" style="display:flex; justify-content:space-between; align-items:center">
-              ${m.name}
+            <div class="team-name" style="display:flex; justify-content:center; align-items:center; position:relative;">
+              <span style="text-align:center">${m.name}</span>
               ${canUserAddMembers(getCurrentUser()) ? `
-                <button class="icon-btn btn-xs edit-member-btn" data-id="${m.id}" data-name="${m.name}" data-role="${m.role}" title="Edit Role">
+                <button class="icon-btn btn-xs edit-member-btn" data-id="${m.id}" data-name="${m.name}" data-role="${m.role}" title="Edit Role" style="position:absolute; right:0;">
                   <i data-lucide="edit-2"></i>
                 </button>
               ` : ''}

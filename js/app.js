@@ -71,6 +71,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     navigateTo(e.detail.view, e.detail.projectId);
   });
 
+  // Listen for data loading completion
+  window.addEventListener('nexus:dataUpdated', () => {
+    buildSidebar();
+    navigateTo(currentView, currentProjectId);
+    checkNotifDot();
+  });
+
   safeInit('Notif Dot', () => checkNotifDot());
 });
 
